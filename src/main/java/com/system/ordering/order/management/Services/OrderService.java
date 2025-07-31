@@ -2,19 +2,19 @@ package com.system.ordering.order.management.Services;
 
 import com.system.ordering.order.management.DTOs.OrderRequestDto;
 import com.system.ordering.order.management.DTOs.OrderResponseDto;
-
 import java.util.List;
 
 public interface OrderService {
+
     OrderResponseDto placeOrder(OrderRequestDto order);
 
-    OrderResponseDto getOrderById(Integer orderId);
+    OrderResponseDto getOrderById(int orderId);
 
     List<OrderResponseDto> getAllOrders();
 
-    OrderResponseDto addOrUpdateProductInOrder(Integer orderId, Integer productId, Integer quantity);
+    OrderResponseDto addOrUpdateProductInOrder(int orderId, int productId, Integer quantity);
 
-    void deleteProductFromOrder(Integer orderId, Integer productId);
+    void deleteProductFromOrder(int orderId, int productId);
 
-    void deleteOrder(Integer orderId);
+    void deleteOrder(int orderId);
 }

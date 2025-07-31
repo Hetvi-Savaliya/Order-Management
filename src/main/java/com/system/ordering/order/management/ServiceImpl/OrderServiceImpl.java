@@ -16,12 +16,14 @@ import com.system.ordering.order.management.Services.OrderService;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
 
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Validated
 public class OrderServiceImpl implements OrderService {
 
     @Autowired
@@ -33,7 +35,6 @@ public class OrderServiceImpl implements OrderService {
     @Autowired
     private OrderItemRepo orderItemRepo;
 
-    // Place new order
     @Override
     public OrderResponseDto placeOrder(OrderRequestDto request) {
         List<OrderItem> orderItems = new ArrayList<>();
@@ -45,6 +46,9 @@ public class OrderServiceImpl implements OrderService {
             System.out.println("product....." + pq.getProductId() +" "+ pq.getQuantity());
             Product product = productRepo.findById(pq.getProductId())
               .orElseThrow(() -> new ProductNotFoundException("Product not found: " + pq.getProductId()));
+            if (pq.getQuantity()<0){
+                throw new StockInsufficientException("Quantity must have to add more then 1 ");
+            }
             if (product.getStock() < pq.getQuantity()) {
                 throw new StockInsufficientException("Only " + product.getStock() + " units available for product: " + product.getName());
             }
@@ -67,16 +71,13 @@ public class OrderServiceImpl implements OrderService {
         return mapToResponseDto(savedOrder);
     }
 
-    //Get one order
     @Override
-    public OrderResponseDto getOrderById(Integer orderId) {
+    public OrderResponseDto getOrderById(int orderId) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found"));
-
         return mapToResponseDto(order);
     }
 
-    //Get all orders
     @Override
     public List<OrderResponseDto> getAllOrders() {
         return orderRepo.findAll().stream()
@@ -85,38 +86,31 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public OrderResponseDto addOrUpdateProductInOrder(Integer orderId, Integer productId, Integer quantity) {
+    public OrderResponseDto addOrUpdateProductInOrder(int orderId, int productId, Integer quantity) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found"));
-
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new ProductNotFoundException("Product not found"));
         if (product.getStock() < quantity) {
-            throw new IllegalArgumentException("Insufficient stock for product ID: " + productId);
+            throw new StockInsufficientException("Insufficient stock for product ID: " + productId);
         }
         product.setStock(product.getStock() - quantity);
         productRepo.save(product);
 
-        // Check if the item already exists in the order
         OrderItem item = orderItemRepo.findByOrderIdAndProductId(orderId, productId)
                 .orElse(null);
-
         if (item == null) {
-            // Create new item
             item = new OrderItem();
             item.setOrder(order);
             item.setProduct(product);
             item.setQuantity(quantity);
         } else {
-            // Update quantity only
             item.setQuantity(quantity);
         }
 
-        // Calculate subtotal and save
         item.setSubtotal(product.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
         orderItemRepo.save(item);
 
-        // Recalculate total order amount
         BigDecimal total = orderItemRepo.findByOrderId(orderId).stream()
                 .map(OrderItem::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -126,43 +120,38 @@ public class OrderServiceImpl implements OrderService {
 
         return mapToResponseDto(order);
     }
-    //delete the product from order
+
     @Transactional
     @Override
-    public void deleteProductFromOrder(Integer orderId, Integer productId) {
-        // 1. Fetch OrderItem
+    public void deleteProductFromOrder(int orderId, int productId) {
+
         OrderItem item = orderItemRepo.findByOrderIdAndProductId(orderId, productId)
                 .orElseThrow(() -> new ProductNotFoundException("Product not found in the order."));
 
-        // 2. Restore stock to product
         Product product = item.getProduct();
         int restoredQty = item.getQuantity();
         product.setStock(product.getStock() + restoredQty);
         productRepo.save(product);
 
-        // 3. Delete OrderItem
-        orderItemRepo.delete(item); // safer than custom delete
+        Order order = item.getOrder();
+        order.getItems().remove(item);
+        item.setOrder(null);
 
-        // 4. Recalculate total
         List<OrderItem> items = orderItemRepo.findByOrderId(orderId);
         BigDecimal newTotal = items.stream()
                 .map(OrderItem::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // 5. Update order
-        Order order = item.getOrder();
         order.setTotalAmount(newTotal);
-        order.setItems(items);
         orderRepo.save(order);
     }
 
-    // delete the entire order
     @Transactional
     @Override
-    public void deleteOrder(Integer orderId) {
+    public void deleteOrder(int orderId) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found"));
-        // Restore stock for each product in the order
+
         List<OrderItem> items = orderItemRepo.findByOrderId(orderId);
         for (OrderItem item : order.getItems()) {
             Product product = productRepo.findById(item.getProduct().getId())
@@ -170,13 +159,10 @@ public class OrderServiceImpl implements OrderService {
             product.setStock(product.getStock() + item.getQuantity());
             productRepo.save(product);
         }
-        // Delete all items
         orderItemRepo.deleteAll(items);
-        // Delete the order
         orderRepo.delete(order);
     }
 
-    //Utility method to map Order → OrderResponseDto
     private OrderResponseDto mapToResponseDto(Order order) {
         OrderResponseDto response = new OrderResponseDto();
         response.setOrderId(order.getId());
