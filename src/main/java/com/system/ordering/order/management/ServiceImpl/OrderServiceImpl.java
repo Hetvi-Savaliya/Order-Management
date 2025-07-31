@@ -86,7 +86,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public OrderResponseDto addOrUpdateProductInOrder(int orderId, int productId, Integer quantity) {
+    public OrderResponseDto addOrUpdateProductInOrder(int orderId, int productId, int quantity) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found"));
         Product product = productRepo.findById(productId)

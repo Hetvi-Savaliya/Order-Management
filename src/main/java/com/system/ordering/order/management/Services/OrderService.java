@@ -12,7 +12,7 @@ public interface OrderService {
 
     List<OrderResponseDto> getAllOrders();
 
-    OrderResponseDto addOrUpdateProductInOrder(int orderId, int productId, Integer quantity);
+    OrderResponseDto addOrUpdateProductInOrder(int orderId, int productId, int quantity);
 
     void deleteProductFromOrder(int orderId, int productId);
 

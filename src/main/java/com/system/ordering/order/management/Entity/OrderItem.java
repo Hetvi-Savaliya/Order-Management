@@ -24,7 +24,7 @@ public class OrderItem {
     @NotNull
     @Min(1)
     @Column(nullable = false)
-    private Integer quantity;
+    private int quantity;
 
     @NotNull
     @DecimalMin("0.0")

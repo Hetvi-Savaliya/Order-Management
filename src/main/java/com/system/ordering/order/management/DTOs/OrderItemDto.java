@@ -21,7 +21,7 @@ public class OrderItemDto {
 
     @NotNull()
     @Min(value = 1)
-    private Integer quantity;
+    private int quantity;
 
     private BigDecimal price;
 

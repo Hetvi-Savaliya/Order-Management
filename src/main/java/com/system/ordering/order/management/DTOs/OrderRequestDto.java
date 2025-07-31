@@ -23,7 +23,7 @@ public class OrderRequestDto {
 
         @NotNull()
         @Min(value = 1)
-        private Integer quantity;
+        private int quantity;
     }
 }
 
